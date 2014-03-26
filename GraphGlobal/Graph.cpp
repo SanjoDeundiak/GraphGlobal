@@ -30,10 +30,11 @@ void Node::AddConn(size_t i)
 
 bool Graph::Inters(const Point &start1, const Point &end1, const Point &start2, const Point &end2, Point &r) const
 {
+	// direction vectors of lines
 	Point dir1 = end1 - start1;
 	Point dir2 = end2 - start2;
 
-	//считаем уравнения прямых проходящих через отрезки
+	// equations of lines are a*x + b*y + d = 0
 	double a1 = -dir1.y;
 	double b1 = +dir1.x;
 	double d1 = -(a1*start1.x + b1*start1.	y);
@@ -42,17 +43,18 @@ bool Graph::Inters(const Point &start1, const Point &end1, const Point &start2, 
 	double b2 = +dir2.x;
 	double d2 = -(a2*start2.x + b2*start2.y);
 
-	//подставляем концы отрезков, для выяснения в каких полуплоскотях они
+	// finding deviations from the lines
 	double seg1_line2_start = a2*start1.x + b2*start1.y + d2;
 	double seg1_line2_end = a2*end1.x + b2*end1.y + d2;
 
 	double seg2_line1_start = a1*start2.x + b1*start2.y + d1;
 	double seg2_line1_end = a1*end2.x + b1*end2.y + d1;
 
-	//если концы одного отрезка имеют один знак, значит он в одной полуплоскости и пересечения нет.
+	// check wheather points are on the same side relative to the line
 	if (seg1_line2_start * seg1_line2_end > 0 || seg2_line1_start * seg2_line1_end > 0)
 		return false;
 
+	// check wheather intersection is on the end of line
 	if (abs(seg1_line2_start) < eps)
 		r = start1;
 	else if (abs(seg1_line2_end) < eps)
@@ -61,7 +63,7 @@ bool Graph::Inters(const Point &start1, const Point &end1, const Point &start2, 
 		r = start2;
 	else if (abs(seg2_line1_end) < eps)
 		r = end2;
-	else
+	else // if no...
 	{
 		double u = seg1_line2_start / (seg1_line2_start - seg1_line2_end);
 		r = start1 + u*dir1;
@@ -84,72 +86,71 @@ Graph::Graph(const vector<double> &X, const vector<double> &Y)
 		if (i < n - 1)
 			nodes[i].AddConn(nodes.size());
 	}
-	nodes.back().AddConn(0);
+	// Connect last node with first
+	nodes.back().AddConn(0); 
 	nodes.front().AddConn(nodes.size() - 1);
-
-	n = nodes.size(); // new size without repitions
+	
 	Point r(0,0);
-	for (size_t i = 0; i < n - 1; i++) // Check for intersections
-	for (size_t j = i + 2; j < n - 1; j++)
-	if (Inters(nodes[i].p, nodes[i + 1].p, nodes[j].p, nodes[j + 1].p, r))
+	// We will check all edges for intersections
+	for (size_t i1 = 0; i1 < nodes.size(); i1++) // All possible beginnings of edges
+	for (size_t i2 = 0; i2 < nodes[i1].vi.size(); i2++) // All edges starting at i
 	{
-		// Check wheather we're adding new node, or changing existing node
-		size_t k;
-		for (k = 0; k < nodes.size(); k++)
+		if (i1 > nodes[i1].vi[i2]) // To consider each edge only once
+			continue;
+		for (size_t j1 = i1 + 1; j1 < nodes.size(); j1++) // Other edges
+		for (size_t j2 = 0; j2 < nodes[j1].vi.size(); j2++) // All edges starting at j					
+		if (i1 == nodes[j1].vi[j2] || j1 == nodes[i1].vi[i2] || nodes[i1].vi[i2] == nodes[j1].vi[j2] ||
+			j1 > nodes[j1].vi[j2])
+			continue;
+		else if (Inters(nodes[i1].p, nodes[nodes[i1].vi[i2]].p, nodes[j1].p, nodes[nodes[j1].vi[j2]].p, r))
 		{
-			if ((r - nodes[k].p).norm() < eps)
-				break;
-		}
-		
-		// Disconnect old nodes and connect them with new one
-		nodes[i].ChangeConn(i + 1, k);
-		nodes[i + 1].ChangeConn(i, k);
-		nodes[j].ChangeConn(j + 1, k);
-		nodes[j + 1].ChangeConn(j, k);
+			// Check wheather we're adding a new node, or changing existing node
+			size_t k;
+			for (k = 0; k < nodes.size(); k++)
+			{
+				if ((r - nodes[k].p).norm() < eps)
+					break;
+			}			
 
+			size_t a = nodes[i1].vi[i2], b = nodes[j1].vi[j2];
+			if (k == nodes.size()) // adding new node
+			{
+				// Disconnect old nodes and connect them with new one				
+				nodes[i1].ChangeConn(a, k);
+				nodes[a].ChangeConn(i1, k);
+				nodes[j1].ChangeConn(b, k);
+				nodes[b].ChangeConn(j1, k);
 
-		if (k == nodes.size()) // adding new node
-		{
-			nodes.push_back(Node(Point(r), {i, i + 1, j, j + 1}));
-		}
-		else // connecting existing node with others
-		{
-			nodes[k].AddConn(i);
-			nodes[k].AddConn(i + 1);
-			nodes[k].AddConn(j);
-			nodes[k].AddConn(j + 1);
-		}
-	}	
-
-	for (size_t i = 1; i < n - 1; i++)
-	if (Inters(nodes[i].p, nodes[i + 1].p, nodes[n - 1].p, nodes[0].p, r)) // Working with last segment
-	{
-		// Check wheather we're adding new node, or changing existing node
-		size_t k;
-		for (k = 0; k < nodes.size(); k++)
-		if ((r - nodes[k].p).norm() < eps)
-			break;
-
-		// Disconnect old nodes and connect them with new one
-		nodes[i].ChangeConn(i + 1, k);
-		nodes[i + 1].ChangeConn(i, k);
-		nodes[n - 1].ChangeConn(0, k);
-		nodes[0].ChangeConn(n - 1, k);
-
-
-		if (k == nodes.size()) // adding new node
-		{
-			nodes.push_back(Node(Point(r), { i, i + 1, n - 1, 0 }));
-		}
-		else // connecting existing node with others
-		{
-			nodes[k].AddConn(i);
-			nodes[k].AddConn(i + 1);
-			nodes[k].AddConn(n - 1);
-			nodes[k].AddConn(0);
+				nodes.push_back(Node(Point(r), { i1, a, j1, b })); // Creating node
+			}
+			else // connecting existing node with others
+			{
+				if (abs((nodes[k].p - nodes[i1].p).norm()) < eps || abs((nodes[k].p - nodes[a].p).norm()) < eps)
+				{
+					nodes[j1].ChangeConn(b, k);
+					nodes[b].ChangeConn(j1, k);
+					nodes[k].AddConn(j1);
+					nodes[k].AddConn(b);
+				}
+				else if (abs((nodes[k].p - nodes[j1].p).norm()) < eps || abs((nodes[k].p - nodes[b].p).norm()) < eps)
+				{
+					nodes[i1].ChangeConn(a, k);
+					nodes[a].ChangeConn(i1, k);
+					nodes[k].AddConn(i1);
+					nodes[k].AddConn(a);
+				}
+				else
+				{
+					nodes[k].AddConn(i1);
+					nodes[k].AddConn(a);
+					nodes[k].AddConn(j1);
+					nodes[k].AddConn(b);
+				}
+			}
 		}
 	}
 }
+
 
 ostream &operator<<(ostream &os, const Point &p)
 {		
