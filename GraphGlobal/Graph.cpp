@@ -50,11 +50,22 @@ bool Graph::Inters(const Point &start1, const Point &end1, const Point &start2, 
 	double seg2_line1_end = a1*end2.x + b1*end2.y + d1;
 
 	//если концы одного отрезка имеют один знак, значит он в одной полуплоскости и пересечения нет.
-	if (seg1_line2_start * seg1_line2_end >= 0 || seg2_line1_start * seg2_line1_end >= 0)
+	if (seg1_line2_start * seg1_line2_end > 0 || seg2_line1_start * seg2_line1_end > 0)
 		return false;
 
-	double u = seg1_line2_start / (seg1_line2_start - seg1_line2_end);
-	r = start1 + u*dir1;
+	if (abs(seg1_line2_start) < eps)
+		r = start1;
+	else if (abs(seg1_line2_end) < eps)
+		r = end1;
+	else if (abs(seg2_line1_start) < eps)
+		r = start2;
+	else if (abs(seg2_line1_end) < eps)
+		r = end2;
+	else
+	{
+		double u = seg1_line2_start / (seg1_line2_start - seg1_line2_end);
+		r = start1 + u*dir1;
+	}
 
 	return true;
 }
@@ -84,9 +95,11 @@ Graph::Graph(const vector<double> &X, const vector<double> &Y)
 	{
 		// Check wheather we're adding new node, or changing existing node
 		size_t k;
-		for (k = 0; k < nodes.size(); k++)		
-		if ((r - nodes[k].p).norm() < eps)
+		for (k = 0; k < nodes.size(); k++)
+		{
+			if ((r - nodes[k].p).norm() < eps)
 				break;
+		}
 		
 		// Disconnect old nodes and connect them with new one
 		nodes[i].ChangeConn(i + 1, k);
@@ -108,7 +121,7 @@ Graph::Graph(const vector<double> &X, const vector<double> &Y)
 		}
 	}	
 
-	for (size_t i = 0; i < n - 1; i++)
+	for (size_t i = 1; i < n - 1; i++)
 	if (Inters(nodes[i].p, nodes[i + 1].p, nodes[n - 1].p, nodes[0].p, r)) // Working with last segment
 	{
 		// Check wheather we're adding new node, or changing existing node
@@ -224,5 +237,6 @@ void Graph::rec(size_t i, vector<size_t> &v) const
 		return;
 	// pushing current vertex to stack
 	v.push_back(i);
+	// recursion
 	rec(min, v);	
 }
