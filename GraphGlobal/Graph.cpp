@@ -171,6 +171,7 @@ vector<Figure> Graph::process()
 {
 	vector<Figure> v;
 	vector<Point> f;
+	vector<vector<size_t>> pathes;
 	vector<size_t> path;
 	std::set<size_t> u;
 
@@ -192,19 +193,30 @@ vector<Figure> Graph::process()
 		// form all figures starting with this x
 		Compare comp(nodes[min].p, nodes, true);
 		std::sort(nodes[min].vi.begin(), nodes[min].vi.end(), comp);
-		for (size_t j = 0; j < nodes[min].vi.size(); j++)
+		for (size_t j = 0; j < nodes[min].vi.size() - 1; j++)
 		{
 			path.clear();
 			path.push_back(min);			
 			rec(nodes[min].vi[j], path);
-			if (path.front() == path.back() && path.size() > 1)
-			{
-				f.clear();
-				for (size_t k = 0; k < path.size(); k++)
-					f.push_back(nodes[path[k]].p);
-				v.push_back(Figure(f));
-			}
+			if (path.front() == path.back() && path.size() > 1) // if we found figure			
+			for (size_t k = pathes.size() - 1;  ; k--) 			
+			if (k > pathes.size()					  // we checked all figures that starts with current vertex
+				|| pathes[k].front() != path.front()) // so we can add result			
+			{									   
+				pathes.push_back(path);
+				break;
+			}							
+			else if (pathes[k][1] == path[path.size() - 2]) // we went to finish though the edge that was already used
+				break;								        // so we can't use this figure
 		}
+	}
+
+	for (size_t i = 0; i < pathes.size(); i++)
+	{
+		f.clear();
+		for (size_t j = 0; j < pathes[i].size(); j++)		
+			f.push_back(nodes[pathes[i][j]].p);		
+		v.push_back(Figure(f));
 	}
 
 	return v;
@@ -234,8 +246,8 @@ void Graph::rec(size_t i, vector<size_t> &v) const
 			min = nodes[i].vi[j];
 		}
 	}
-	if (xmin > 0) // we can't go clockwise
-		return;
+	//if (xmin > 0) // we can't go clockwise
+		//return;
 	// pushing current vertex to stack
 	v.push_back(i);
 	// recursion
